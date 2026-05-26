@@ -1,6 +1,8 @@
 from .base import *
 
 DEBUG = False
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
 SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT", "true").lower() == "true"
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
