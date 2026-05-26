@@ -6,13 +6,11 @@ from .views import (
     ActivityListView,
     ActivityRawView,
     HealthView,
-    IndexView,
     UploadView,
 )
 
 
 urlpatterns = [
-    path("", IndexView.as_view(), name="index"),
     path("api/health/", HealthView.as_view(), name="health"),
     path("api/upload/<str:source_type>/", UploadView.as_view(), name="upload"),
     path("api/activities/", ActivityListView.as_view(), name="activity-list"),
