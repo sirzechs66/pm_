@@ -1,0 +1,18 @@
+[phases.setup]
+nixPkgs = ["(python312.withPackages (ps: [ps.pip]))", "nodejs_20"]
+
+[phases.install]
+cmds = [
+  "cd breathe_esg && pip install -r backend/requirements.txt",
+  "cd breathe_esg/frontend && npm ci"
+]
+
+[phases.build]
+cmds = [
+  "cd breathe_esg/frontend && npm run build",
+  "cd breathe_esg && python backend/manage.py migrate --settings=config.settings.production",
+  "cd breathe_esg && python backend/manage.py collectstatic --noinput --settings=config.settings.production"
+]
+
+[start]
+cmd = "cd breathe_esg/backend && python -m gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"

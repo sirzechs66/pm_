@@ -28,8 +28,9 @@
    - `DEBUG=false`
    - `ALLOWED_HOSTS=<your-railway-domain>`
    - `DATABASE_URL=${{Postgres.DATABASE_URL}}`
-4. The repo already includes `railway.json`, `nixpacks.toml`, and `Procfile`, so Railway can pick the commands up automatically.
-5. Deploy the service and confirm `/api/health/` returns `{"status":"ok"}`.
+4. If Railway deploys from the repository root, it will use the root-level `nixpacks.toml` and `Procfile` and automatically `cd` into `breathe_esg/`.
+5. If you set Railway's Root Directory manually instead, set it to `breathe_esg`.
+6. Deploy the service and confirm `/api/health/` returns `{"status":"ok"}`.
 
 ## Local run
 
