@@ -30,7 +30,8 @@
    - `DATABASE_URL=${{Postgres.DATABASE_URL}}`
 4. If Railway deploys from the repository root, it will use the root-level `nixpacks.toml` and `Procfile` and automatically `cd` into `breathe_esg/`.
 5. If you set Railway's Root Directory manually instead, set it to `breathe_esg`.
-6. Deploy the service and confirm `/api/health/` returns `{"status":"ok"}`.
+6. The startup command runs `python backend/manage.py migrate --settings=config.settings.production` before Gunicorn so the schema is applied on deploy.
+7. Deploy the service and confirm `/api/health/` returns `{"status":"ok"}`.
 
 ## Local run
 
