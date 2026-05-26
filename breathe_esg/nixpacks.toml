@@ -1,14 +1,21 @@
 [phases.setup]
-nixPkgs = ["python312", "nodejs_20"]
+nixPkgs = ["python312Full", "nodejs_20"]
 
 [phases.install]
-cmds = ["pip install -r backend/requirements.txt", "cd frontend && npm ci"]
+cmds = [
+  "python3 -m pip install -r backend/requirements.txt", 
+  "cd frontend && npm ci"
+]
 
 [phases.build]
 cmds = [
   "cd frontend && npm run build",
-  "python backend/manage.py migrate --settings=config.settings.production",
-  "python backend/manage.py collectstatic --noinput --settings=config.settings.production"
+  "python3 backend/manage.py collectstatic --noinput --settings=config.settings.production"
+]
+
+[phases.predeploy]
+cmds = [
+  "python3 backend/manage.py migrate --settings=config.settings.production"
 ]
 
 [start]
