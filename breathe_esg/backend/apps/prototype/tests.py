@@ -27,6 +27,47 @@ class PrototypeFlowTests(TestCase):
         self.assertEqual(approve.status_code, 200)
         self.assertEqual(approve.data["status"], "approved")
 
+    def test_utility_upload_accepts_common_csv_datetime_formats(self):
+        csv_content = (
+            "MeterID,StartTime,EndTime,Usage_kWh,Cost\n"
+            "MTR-2,03/01/2025 00:00,03/31/2025 23:59,1200,180.25\n"
+        )
+        upload = SimpleUploadedFile("utility.csv", csv_content.encode("utf-8"), content_type="text/csv")
+        response = self.client.post("/api/upload/utility/", {"file": upload}, format="multipart")
+        self.assertEqual(response.status_code, 201)
+        result = response.data["results"][0]
+        self.assertEqual(result["status"], "pending_review")
+        self.assertEqual(result["quantity"], "1200.0000")
+        self.assertEqual(result["unit_normalised"], "kWh")
+
+    def test_failed_utility_row_can_retry_after_parser_fix(self):
+        csv_content = (
+            "MeterID,StartTime,EndTime,Usage_kWh,Cost\n"
+            "MTR-3,03/01/2025 00:00,03/31/2025 23:59,250,40.00\n"
+        )
+        upload = SimpleUploadedFile("utility.csv", csv_content.encode("utf-8"), content_type="text/csv")
+        response = self.client.post("/api/upload/utility/", {"file": upload}, format="multipart")
+        self.assertEqual(response.status_code, 201)
+        activity_id = response.data["results"][0]["id"]
+
+        activity = ActivityData.objects.get(id=activity_id)
+        activity.status = "failed"
+        activity.failure_reason = "Invalid datetime in StartTime."
+        activity.save(update_fields=["status", "failure_reason", "updated_at"])
+
+        raw_row = activity.upload_batch.utilityrawrows.get(id=activity.source_row_id)
+        raw_row.start_time = None
+        raw_row.end_time = None
+        raw_row.usage_kwh = None
+        raw_row.status = "failed"
+        raw_row.failure_reason = "Invalid datetime in StartTime."
+        raw_row.save(update_fields=["start_time", "end_time", "usage_kwh", "status", "failure_reason", "updated_at"])
+
+        retry = self.client.patch(f"/api/activities/{activity_id}/", {"action": "retry"}, format="json")
+        self.assertEqual(retry.status_code, 200)
+        self.assertEqual(retry.data["status"], "pending_review")
+        self.assertEqual(retry.data["quantity"], "250.0000")
+
     def test_sap_failed_row_can_retry(self):
         csv_content = (
             "MATNR,MAKTX,MENGE,MEINS,WERKS,BSART,ERDAT\n"
@@ -41,4 +82,3 @@ class PrototypeFlowTests(TestCase):
 
         retry = self.client.patch(f"/api/activities/{activity_id}/", {"action": "retry"}, format="json")
         self.assertEqual(retry.status_code, 400)
-

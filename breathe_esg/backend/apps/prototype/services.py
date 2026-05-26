@@ -53,12 +53,53 @@ def parse_decimal(value, field_name):
 
 
 def parse_datetime_value(value, field_name):
-    parsed = parse_datetime(str(value))
-    if parsed is None:
+    value = "" if value is None else str(value).strip()
+    if not value:
+        raise ValueError(f"Invalid datetime in {field_name}.")
+
+    normalized_candidates = []
+    if value.endswith("Z"):
+        normalized_candidates.append(f"{value[:-1]}+00:00")
+    normalized_candidates.append(value)
+
+    # Common CSV exports use a space instead of the ISO "T" separator.
+    if " " in value and "T" not in value:
+        normalized_candidates.append(value.replace(" ", "T", 1))
+
+    parsed = None
+    for candidate in normalized_candidates:
+        parsed = parse_datetime(candidate)
+        if parsed is not None:
+            break
         try:
-            parsed = datetime.fromisoformat(str(value))
-        except ValueError as exc:
-            raise ValueError(f"Invalid datetime in {field_name}.") from exc
+            parsed = datetime.fromisoformat(candidate)
+        except ValueError:
+            parsed = None
+        if parsed is not None:
+            break
+
+    if parsed is None:
+        for fmt in (
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d %H:%M",
+            "%Y/%m/%d %H:%M:%S",
+            "%Y/%m/%d %H:%M",
+            "%m/%d/%Y %H:%M:%S",
+            "%m/%d/%Y %H:%M",
+            "%d/%m/%Y %H:%M:%S",
+            "%d/%m/%Y %H:%M",
+            "%Y-%m-%d",
+            "%m/%d/%Y",
+            "%d/%m/%Y",
+        ):
+            try:
+                parsed = datetime.strptime(value, fmt)
+                break
+            except ValueError:
+                continue
+
+    if parsed is None:
+        raise ValueError(f"Invalid datetime in {field_name}.")
     if timezone.is_naive(parsed):
         parsed = timezone.make_aware(parsed, dt_timezone.utc)
     return parsed
@@ -360,9 +401,55 @@ def get_raw_row(source_type, source_row_id, tenant_id):
     return model.objects.get(id=source_row_id, tenant_id=tenant_id)
 
 
+def refresh_raw_row_from_source(raw_row, source_type):
+    if source_type == "utility":
+        raw_row.meter_id = (raw_row.raw_data.get("MeterID") or "").strip()
+        raw_row.start_time = parse_datetime_value(raw_row.raw_data.get("StartTime"), "StartTime")
+        raw_row.end_time = parse_datetime_value(raw_row.raw_data.get("EndTime"), "EndTime")
+        raw_row.usage_kwh = parse_decimal(raw_row.raw_data.get("Usage_kWh"), "Usage_kWh")
+        raw_row.cost = (
+            parse_decimal(raw_row.raw_data.get("Cost"), "Cost")
+            if raw_row.raw_data.get("Cost") not in (None, "")
+            else None
+        )
+        raw_row.save(
+            update_fields=[
+                "meter_id",
+                "start_time",
+                "end_time",
+                "usage_kwh",
+                "cost",
+                "updated_at",
+            ]
+        )
+        return
+
+    if source_type == "sap":
+        raw_row.matnr = (raw_row.raw_data.get("MATNR") or "").strip()
+        raw_row.maktx = (raw_row.raw_data.get("MAKTX") or "").strip()
+        raw_row.menge = parse_decimal(raw_row.raw_data.get("MENGE"), "MENGE")
+        raw_row.meins = (raw_row.raw_data.get("MEINS") or "").strip()
+        raw_row.werks = (raw_row.raw_data.get("WERKS") or "").strip()
+        raw_row.bsart = (raw_row.raw_data.get("BSART") or "").strip()
+        raw_row.erdat = parse_date_value(raw_row.raw_data.get("ERDAT"), "ERDAT")
+        raw_row.save(
+            update_fields=[
+                "matnr",
+                "maktx",
+                "menge",
+                "meins",
+                "werks",
+                "bsart",
+                "erdat",
+                "updated_at",
+            ]
+        )
+
+
 @transaction.atomic
 def retry_activity(activity, request):
     raw_row = get_raw_row(activity.source_type, activity.source_row_id, activity.tenant_id)
+    refresh_raw_row_from_source(raw_row, activity.source_type)
     normalizers = {
         "utility": normalize_utility_row,
         "travel": normalize_travel_row,
