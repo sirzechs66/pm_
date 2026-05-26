@@ -1,0 +1,33 @@
+{
+  "trips": [
+    {
+      "id": "TRIP-100",
+      "segments": [
+        {
+          "type": "Flight",
+          "departure_airport": "JFK",
+          "arrival_airport": "LHR",
+          "distance_km": 5540,
+          "date": "2025-03-12"
+        },
+        {
+          "type": "Hotel",
+          "nights": 3,
+          "date": "2025-03-13"
+        }
+      ]
+    },
+    {
+      "id": "TRIP-101",
+      "segments": [
+        {
+          "type": "Train",
+          "departure_airport": "CDG",
+          "arrival_airport": "BRU",
+          "distance_km": 310,
+          "date": "2025-04-02"
+        }
+      ]
+    }
+  ]
+}
