@@ -13,10 +13,5 @@ cmds = [
   "python3 backend/manage.py collectstatic --noinput --settings=config.settings.production"
 ]
 
-[phases.predeploy]
-cmds = [
-  "python3 backend/manage.py migrate --settings=config.settings.production"
-]
-
 [start]
 cmd = "cd backend && gunicorn config.wsgi:application"
